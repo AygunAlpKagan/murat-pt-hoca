@@ -1,36 +1,43 @@
 import { brand, dayPlan, dietById, formatLongDate, packages, programById, quotes, todayIndex } from "../data";
+import { GymScene, IconBarbell, IconBottle, IconKettle, perkIcons } from "../illustrations";
 
 const perks = [
   {
     k: "01",
     t: "Salon rehberi",
-    d: "Hangi hareket, kaç set, ne kadar dinlenme, nelere dikkat. Üye salonda düşünmez, uygular.",
+    d: "Hangi hareket, kaç set, ne kadar dinlenme. Salonda düşünmezsin, barı kaldırırsın.",
   },
   {
     k: "02",
     t: "Diyet cebinde",
-    d: "Öğün öğün liste. Yenilen işaretlenir, hoca akşam kaça uyulduğunu görür.",
+    d: "Öğün öğün liste. Yediğini işaretle, akşam ne kaldığını gör.",
   },
   {
     k: "03",
-    t: "Hoca kontrolü",
-    d: "Check-in, devam serisi ve tamamlanan setler hocanın ekranına düşer.",
+    t: "Seti kapat",
+    d: "Tek dokunuş. Bitirdiğin set yeşile döner, seri bozulmaz.",
   },
   {
     k: "04",
-    t: "Anında program",
-    d: "Hoca programı veya diyeti değiştirir. Üye yenileyince yeni liste hazırdır.",
+    t: "Hocandan not",
+    d: "Programın değişince ana sayfana düşer. Kâğıt, WhatsApp, kaybolan liste yok.",
   },
   {
     k: "05",
     t: "Ölçü konuşur",
-    d: "Kilo, bel, kalça, kol. His değil, haftalık çizgi.",
+    d: "Kilo, bel, kalça, kol. Aynadaki his değil, haftalık çizgi.",
   },
   {
     k: "06",
-    t: "Kaçıranı gör",
-    d: "Gelmeyen, öğün atan, serisi kırılan üye listede ayrı durur.",
+    t: "Su ve tempo",
+    d: "Bardak bardak su, dinlenme süresi hareketin yanında. Salon ritmi bozulmaz.",
   },
+];
+
+const gear = [
+  ["Halter", IconBarbell],
+  ["Kettlebell", IconKettle],
+  ["Matara", IconBottle],
 ];
 
 export default function Landing({ go }) {
@@ -50,7 +57,6 @@ export default function Landing({ go }) {
           <a href="#paket">Paketler</a>
         </nav>
         <div className="nav-actions">
-          <button className="btn btn-ghost" onClick={() => go("hoca")}>Hoca paneli</button>
           <button className="btn btn-lime" onClick={() => go("uye")}>Üye girişi</button>
         </div>
       </header>
@@ -66,21 +72,20 @@ export default function Landing({ go }) {
             <em>hazır.</em>
           </h1>
           <p className="lede">
-            {brand.name}, üyelerinin antrenmanını, diyetini ve ilerlemesini tek yerde tutar.
-            Üye salonda uygular. Hoca kim yolunda, kim koptu, anında görür.
+            {brand.name} ile salona girmeden bugünün barı, seti ve tabağı hazır.
+            Telefonu aç, hareketi gör, işareti koy, çık.
           </p>
           <div className="cta-row">
             <button className="btn btn-lime btn-lg" onClick={() => go("uye")}>
-              Üye olarak dene
-            </button>
-            <button className="btn btn-ghost btn-lg" onClick={() => go("hoca")}>
-              Hocanın ekranı
+              Bugünkü programa gir
             </button>
           </div>
-          <p className="micro">Canlı demo. Şifre yok — üye Elif, hoca Murat.</p>
+          <p className="micro">Şifre yok. Elif’in günü açık, setleri işaretleyebilirsin.</p>
         </div>
 
-        <article className="ticket">
+        <div className="hero-stage">
+          <GymScene />
+          <article className="ticket">
           <div className="ticket-top">
             <div>
               <p className="ticket-kicker">{formatLongDate()}</p>
@@ -110,7 +115,25 @@ export default function Landing({ go }) {
               <b>Elif D.</b>
             </div>
           </div>
-        </article>
+          </article>
+        </div>
+      </section>
+
+      <section className="gear-rail" aria-label="Salon ekipmanı">
+        {gear.map(([label, Icon]) => (
+          <div key={label}>
+            <Icon />
+            <span>{label}</span>
+          </div>
+        ))}
+        <div>
+          <strong>{day.duration}</strong>
+          <span>bugünkü seans</span>
+        </div>
+        <div>
+          <strong>{diet.kcal}</strong>
+          <span>kcal liste</span>
+        </div>
       </section>
 
       <div className="marquee" aria-hidden="true">
@@ -129,13 +152,19 @@ export default function Landing({ go }) {
           <h2>Salonun karmaşası bitsin. Program, tabak ve hoca aynı yerde.</h2>
         </div>
         <div className="bento">
-          {perks.map((item) => (
-            <article key={item.k} className="bento-card">
-              <span>{item.k}</span>
-              <h3>{item.t}</h3>
-              <p>{item.d}</p>
-            </article>
-          ))}
+          {perks.map((item) => {
+            const Icon = perkIcons[item.k];
+            return (
+              <article key={item.k} className="bento-card">
+                <div className="perk-icon">
+                  <Icon />
+                </div>
+                <span>{item.k}</span>
+                <h3>{item.t}</h3>
+                <p>{item.d}</p>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -152,15 +181,15 @@ export default function Landing({ go }) {
           <button className="btn btn-lime" onClick={() => go("uye")}>Elif’in gününü aç</button>
         </article>
         <article className="split-card ink">
-          <p className="eyebrow">Hoca</p>
-          <h2>Altı üye, tek bakış.</h2>
+          <p className="eyebrow">Hocan</p>
+          <h2>Not düşer, program güncellenir.</h2>
           <ul>
-            <li>Uyumu düşen üye “dikkat” diye ayrılır.</li>
-            <li>Bugün kaç set bitmiş, ekranda durur.</li>
-            <li>Program ve diyet tek seçimle değişir.</li>
-            <li>Not yazılır, üyenin ana sayfasına düşer.</li>
+            <li>İniş temposu, hareketin altında yazar.</li>
+            <li>Diyet değişince liste yenilenir.</li>
+            <li>Check-in akşam hocaya gider.</li>
+            <li>Sen salondasın. Takip arkada kalır.</li>
           </ul>
-          <button className="btn btn-lime" onClick={() => go("hoca")}>Murat hocanın paneli</button>
+          <button className="btn btn-lime" onClick={() => go("uye")}>Elif’in gününü aç</button>
         </article>
       </section>
 
@@ -202,8 +231,8 @@ export default function Landing({ go }) {
 
       <section className="closer">
         <div>
-          <p className="eyebrow">Göstermelik hazır</p>
-          <h2>Önce üye ol, setleri işaretle. Sonra hoca ekranından aynı günü gör.</h2>
+          <p className="eyebrow">Salona çıkmadan</p>
+          <h2>Telefonu aç, bugünkü işi gör, barın altına gir.</h2>
         </div>
         <button className="btn btn-lime btn-lg" onClick={() => go("uye")}>Demoyu başlat</button>
       </section>
