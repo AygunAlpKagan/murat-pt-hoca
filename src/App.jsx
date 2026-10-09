@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { resolveDiet, threadOf, waterGlasses } from "./data";
 import { freshState, loadState, saveState } from "./storage";
 import Landing from "./views/Landing";
 import Member from "./views/Member";
@@ -62,22 +63,32 @@ export default function App() {
     toggleCheck: (key) => toggleKey("checks", key),
     toggleMeal: (key) => toggleKey("meals", key),
     addWater: (id) =>
-      setState((current) => ({
-        ...current,
-        water: { ...current.water, [id]: ((current.water[id] ?? 0) + 1) % 9 },
-      })),
+      setState((current) => {
+        const member = current.members.find((item) => item.id === id);
+        const cap = waterGlasses(member ? resolveDiet(member) : null) + 1;
+        return {
+          ...current,
+          water: { ...current.water, [id]: ((current.water[id] ?? 0) + 1) % cap },
+        };
+      }),
     addCheckin: (id, payload) =>
       patchMember(id, (member) => ({
         ...member,
         checkins: [{ id: uid(), ...payload, at: "Bugün", read: false }, ...member.checkins],
       })),
-    addNote: (id, text) =>
+    addMessage: (id, from, text) =>
       patchMember(id, (member) => ({
         ...member,
-        notes: [{ id: uid(), text, at: "Bugün", from: "hoca" }, ...member.notes],
+        messages: [{ id: uid(), from, text, at: "Bugün" }, ...threadOf(member)],
       })),
-    setProgram: (id, programId) => patchMember(id, (member) => ({ ...member, programId })),
-    setDiet: (id, dietId) => patchMember(id, (member) => ({ ...member, dietId })),
+    setProgram: (id, programId) => patchMember(id, (member) => ({ ...member, programId, customDays: {} })),
+    setCustomDay: (id, dayIndex, day) =>
+      patchMember(id, (member) => ({
+        ...member,
+        customDays: { ...(member.customDays ?? {}), [dayIndex]: day },
+      })),
+    setDiet: (id, dietId) => patchMember(id, (member) => ({ ...member, dietId, customDiet: null })),
+    setCustomDiet: (id, diet) => patchMember(id, (member) => ({ ...member, customDiet: diet })),
     markRead: (id) =>
       patchMember(id, (member) => ({
         ...member,
