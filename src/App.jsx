@@ -5,8 +5,11 @@ import Member from "./views/Member";
 import Coach from "./views/Coach";
 
 function viewFromLocation() {
-  const h = location.hash.replace("#", "");
-  if (h === "uye" || h === "hoca") return h;
+  const path = location.pathname.replace(/\/+$/, "") || "/";
+  if (path.endsWith("/uye")) return "uye";
+  if (path.endsWith("/hoca")) return "hoca";
+  const hash = location.hash.replace("#", "");
+  if (hash === "uye" || hash === "hoca") return hash;
   return "home";
 }
 
@@ -23,21 +26,18 @@ export default function App() {
   }, [state]);
 
   useEffect(() => {
+    const hash = location.hash.replace("#", "");
+    if (hash === "uye" || hash === "hoca") {
+      history.replaceState(null, "", `/${hash}`);
+    }
     const sync = () => setView(viewFromLocation());
-    window.addEventListener("hashchange", sync);
     window.addEventListener("popstate", sync);
-    return () => {
-      window.removeEventListener("hashchange", sync);
-      window.removeEventListener("popstate", sync);
-    };
+    return () => window.removeEventListener("popstate", sync);
   }, []);
 
   function go(next) {
-    if (next === "home") {
-      history.pushState(null, "", `${location.pathname}${location.search}`);
-    } else {
-      location.hash = next;
-    }
+    const path = next === "home" ? "/" : `/${next}`;
+    history.pushState(null, "", path);
     setView(next);
     window.scrollTo(0, 0);
   }

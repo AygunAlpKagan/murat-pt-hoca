@@ -28,13 +28,7 @@ export default function Member(props) {
 
   return (
     <div className="app">
-      <AppBar
-        who="Üye · Elif Demir"
-        alternate="Hoca paneli"
-        onAlt={() => props.go("hoca")}
-        onHome={() => props.go("home")}
-        onReset={props.reset}
-      />
+      <AppBar who="Üye · Elif Demir" onHome={() => props.go("home")} onReset={props.reset} />
 
       <div className="app-body">
         <aside className="side">
@@ -270,7 +264,7 @@ function Diet({ diet, member, meals, onMeal }) {
         <div>
           <p className="eyebrow">Kişisel liste</p>
           <h1>{diet.name}</h1>
-          <p className="sub">Yenilen öğünü işaretle. Hoca panelinde aynı işaret görünür.</p>
+          <p className="sub">Yenilen öğünü işaretle. Hocan akşam aynı listeyi görür.</p>
         </div>
       </header>
       <div className="macros">
@@ -372,7 +366,7 @@ function Checkin({ onSubmit, sent, latest }) {
         <div>
           <p className="eyebrow">Hocaya gün sonu</p>
           <h1>Bugün nasıldı?</h1>
-          <p className="sub">Gönderince Murat hocanın panelinde okunmamış olarak durur.</p>
+          <p className="sub">Gönderince notun hocana düşer.</p>
         </div>
       </header>
       <form
@@ -408,7 +402,7 @@ function Checkin({ onSubmit, sent, latest }) {
         <button className="btn btn-lime" type="submit">
           Check-in gönder
         </button>
-        {sent && <p className="ok">Gitti. Hoca panelinden Elif’i aç, not orada.</p>}
+        {sent && <p className="ok">Gitti. Hocan bu notu görür.</p>}
       </form>
       {latest && (
         <article className="card quiet">
@@ -454,9 +448,11 @@ export function AppBar({ who, alternate, onAlt, onHome, onReset }) {
       </button>
       <div className="appbar-actions">
         <span className="who-pill">{who}</span>
-        <button className="btn btn-ghost" onClick={onAlt}>
-          {alternate}
-        </button>
+        {alternate ? (
+          <button className="btn btn-ghost" onClick={onAlt}>
+            {alternate}
+          </button>
+        ) : null}
         <button className="btn btn-text" onClick={onReset}>
           Sıfırla
         </button>
