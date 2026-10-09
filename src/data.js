@@ -1,3 +1,5 @@
+import { normalizeExercise } from "./moves.jsx";
+
 export const brand = {
   name: "Murat PT Hoca",
   coach: "Murat Yılmaz",
@@ -526,6 +528,43 @@ export function dietById(id) {
   return diets.find((d) => d.id === id) ?? diets[0];
 }
 
+function asNumber(value, fallback) {
+  if (value === "" || value == null) return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function normalizeMeal(meal = {}) {
+  return {
+    time: meal.time || "12:00",
+    name: meal.name || "Öğün",
+    items: meal.items || "",
+    kcal: asNumber(meal.kcal, 0),
+  };
+}
+
+export function waterGlasses(diet) {
+  return Math.min(16, Math.max(4, Number(diet?.water) || 8));
+}
+
+export function resolveDiet(member) {
+  const base = dietById(member.dietId);
+  const saved = member.customDiet;
+  const source = saved?.meals?.length ? saved : base;
+  const water = asNumber(source.water, 8);
+  return {
+    id: base.id,
+    name: source.name || base.name,
+    kcal: asNumber(source.kcal, base.kcal),
+    protein: asNumber(source.protein, base.protein),
+    carb: asNumber(source.carb, base.carb),
+    fat: asNumber(source.fat, base.fat),
+    water,
+    note: source.note || "",
+    meals: (source.meals ?? base.meals).map(normalizeMeal),
+  };
+}
+
 export function dayPlan(program, index = todayIndex()) {
   return program.days[index] ?? program.days[0];
 }
@@ -533,3 +572,51 @@ export function dayPlan(program, index = todayIndex()) {
 export function setKey(memberId, programId, day, index) {
   return `${memberId}:${programId}:${day}:${index}`;
 }
+
+export function resolveDay(member, dayIndex = todayIndex()) {
+  const saved = member.customDays?.[dayIndex] ?? member.customDays?.[String(dayIndex)];
+  if (saved?.exercises?.length) {
+    return {
+      title: saved.title || "Antrenman",
+      duration: saved.duration || "",
+      kind: saved.kind || "train",
+      exercises: saved.exercises.map(normalizeExercise),
+    };
+  }
+  const day = dayPlan(programById(member.programId), dayIndex);
+  return { ...day, exercises: day.exercises.map(normalizeExercise) };
+}
+
+export function threadOf(member) {
+  if (member.messages?.length) return member.messages;
+  return (member.notes ?? []).map((item) => ({ ...item, from: "hoca" }));
+}
+
+export const records = {
+  elif: [
+    { lift: "Squat", value: "70 kg" },
+    { lift: "Hip thrust", value: "80 kg" },
+    { lift: "Bench press", value: "40 kg" },
+  ],
+  kerem: [
+    { lift: "Deadlift", value: "180 kg" },
+    { lift: "Squat", value: "150 kg" },
+    { lift: "Bench press", value: "110 kg" },
+  ],
+  selin: [
+    { lift: "Goblet squat", value: "12 kg" },
+    { lift: "Lat pulldown", value: "25 kg" },
+  ],
+  burak: [
+    { lift: "Squat", value: "60 kg" },
+    { lift: "Bench press", value: "50 kg" },
+  ],
+  deniz: [
+    { lift: "Squat", value: "90 kg" },
+    { lift: "Row", value: "70 kg" },
+  ],
+  ayse: [
+    { lift: "Hip thrust", value: "60 kg" },
+    { lift: "Squat", value: "45 kg" },
+  ],
+};

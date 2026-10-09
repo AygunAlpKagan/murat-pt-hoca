@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { dayNames, dayPlan, dietById, diets, programById, programs, setKey, todayIndex } from "../data";
+import { dayNames, diets, programs, resolveDay, resolveDiet, setKey, threadOf, todayIndex } from "../data";
+import { catalog, MoveArt, normalizeExercise } from "../moves.jsx";
 import { Bars, Spark } from "../ui";
 import { AppBar, Avatar } from "./Member";
 
@@ -17,7 +18,7 @@ export default function Coach(props) {
 
   const todayDone = useMemo(() => {
     return members.filter((member) => {
-      const plan = dayPlan(programById(member.programId), index);
+      const plan = resolveDay(member, index);
       if (plan.kind === "rest") return false;
       return plan.exercises.some((_, i) => props.state.checks[setKey(member.id, member.programId, index, i)]);
     }).length;
@@ -67,7 +68,7 @@ export default function Coach(props) {
           </div>
           <ul>
             {visible.map((member) => {
-              const plan = dayPlan(programById(member.programId), index);
+              const plan = resolveDay(member, index);
               const total = plan.exercises.length;
               const done = plan.exercises.filter((_, i) => props.state.checks[setKey(member.id, member.programId, index, i)]).length;
               const fresh = member.checkins.some((item) => !item.read);
@@ -102,10 +103,12 @@ export default function Coach(props) {
             setNote={setNote}
             onProgram={(programId) => props.setProgram(current.id, programId)}
             onDiet={(dietId) => props.setDiet(current.id, dietId)}
+            onCustomDay={(dayIndex, day) => props.setCustomDay(current.id, dayIndex, day)}
+            onCustomDiet={(diet) => props.setCustomDiet(current.id, diet)}
             onSend={() => {
               const text = note.trim();
               if (!text) return;
-              props.addNote(current.id, text);
+              props.addMessage(current.id, "hoca", text);
               setNote("");
             }}
           />
@@ -115,11 +118,38 @@ export default function Coach(props) {
   );
 }
 
-function MemberDetail({ member, index, checks, meals, note, setNote, onProgram, onDiet, onSend }) {
-  const program = programById(member.programId);
-  const diet = dietById(member.dietId);
-  const plan = dayPlan(program, index);
-  const done = plan.exercises.filter((_, i) => checks[`${member.id}:${index}:${i}`]).length;
+function MemberDetail({ member, index, checks, meals, note, setNote, onProgram, onDiet, onCustomDay, onCustomDiet, onSend }) {
+  const diet = resolveDiet(member);
+  const [editDay, setEditDay] = useState(index);
+  const plan = resolveDay(member, editDay);
+  const done = plan.exercises.filter((_, i) => checks[setKey(member.id, member.programId, editDay, i)]).length;
+
+  function save(exercises) {
+    onCustomDay(editDay, {
+      title: plan.title,
+      duration: plan.duration,
+      kind: plan.kind,
+      exercises,
+    });
+  }
+
+  function patchExercise(i, patch) {
+    save(plan.exercises.map((item, idx) => (idx === i ? { ...item, ...patch } : item)));
+  }
+
+  function saveDiet(patch) {
+    onCustomDiet({
+      name: diet.name,
+      kcal: diet.kcal,
+      protein: diet.protein,
+      carb: diet.carb,
+      fat: diet.fat,
+      water: diet.water,
+      note: diet.note,
+      meals: diet.meals,
+      ...patch,
+    });
+  }
   const eaten = diet.meals.filter((_, i) => meals[`${member.id}:meal:${i}`]).length;
   const delta = (member.weight - member.startWeight).toFixed(1);
 
@@ -167,48 +197,115 @@ function MemberDetail({ member, index, checks, meals, note, setNote, onProgram, 
       </div>
 
       <div className="duo">
-        <article className="card">
+        <article className="card assign-day">
           <header>
-            <h2>
-              {dayNames[index]} · {plan.title}
-            </h2>
-            <span>
-              {done}/{plan.exercises.length} set
-            </span>
+            <h2>Hareket ataması</h2>
+            <span>{done}/{plan.exercises.length} işaret</span>
           </header>
-          <ul className="watch">
+          <div className="week">
+            {["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map((name, i) => (
+              <button key={name} type="button" className={i === editDay ? "on" : ""} onClick={() => setEditDay(i)}>
+                <small>{name}</small>
+              </button>
+            ))}
+          </div>
+          <p className="hint">{dayNames[editDay]} · {plan.title}. Set, tekrar ve kiloyu yazınca üye ekranı değişir.</p>
+          <div className="rx-list">
             {plan.exercises.map((item, i) => {
-              const on = Boolean(checks[setKey(member.id, member.programId, index, i)]);
+              const marked = Boolean(checks[setKey(member.id, member.programId, editDay, i)]);
               return (
-                <li key={item.name} className={on ? "on" : ""}>
-                  <span className="tick" />
-                  <b>{item.name}</b>
-                  <small>{item.sets}</small>
-                </li>
+                <div key={`${item.name}-${i}`} className={marked ? "rx done" : "rx"}>
+                  <div className="rx-top">
+                    <MoveArt name={item.name} />
+                    <label>
+                      Hareket
+                      <select value={item.name} onChange={(event) => {
+                        const picked = catalog.find((entry) => entry.name === event.target.value);
+                        if (!picked) return;
+                        patchExercise(i, { name: picked.name, weight: picked.weight, rest: picked.rest, note: picked.cue });
+                      }}>
+                        {!catalog.some((entry) => entry.name === item.name) && <option>{item.name}</option>}
+                        {catalog.map((entry) => (
+                          <option key={entry.name}>{entry.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {marked && <em className="tag yolunda">yaptı</em>}
+                  <div className="rx-grid">
+                    <label>Set<input inputMode="numeric" value={item.setsCount} onChange={(event) => patchExercise(i, { setsCount: event.target.value })} /></label>
+                    <label>Tekrar<input inputMode="numeric" value={item.reps} onChange={(event) => patchExercise(i, { reps: event.target.value })} /></label>
+                    <label>Kilo<input value={item.weight} onChange={(event) => patchExercise(i, { weight: event.target.value })} /></label>
+                  </div>
+                  <label>
+                    Nasıl yapılır
+                    <textarea rows={2} value={item.note} onChange={(event) => patchExercise(i, { note: event.target.value })} />
+                  </label>
+                  <button type="button" className="btn btn-text" onClick={() => save(plan.exercises.filter((_, idx) => idx !== i))} disabled={plan.exercises.length < 2}>
+                    Hareketi kaldır
+                  </button>
+                </div>
               );
             })}
-          </ul>
+          </div>
+          <button
+            type="button"
+            className="btn btn-lime"
+            onClick={() => save([...plan.exercises, normalizeExercise({ name: "Squat", sets: "3 × 8" })])}
+          >
+            Hareket ekle
+          </button>
         </article>
-        <article className="card">
+        <article className="card assign-day">
           <header>
-            <h2>Diyet uyumu</h2>
-            <span>
-              {eaten}/{diet.meals.length} öğün
-            </span>
+            <h2>Diyet listesi</h2>
+            <span>{eaten}/{diet.meals.length} yedi</span>
           </header>
-          <ul className="watch">
+          <p className="hint">Üstteki şablon iskelet. Öğünü, yemeği ve hedefi yazınca üyenin Beslenme ekranı değişir.</p>
+          <div className="rx-grid macro-fields">
+            <label>Kalori<input inputMode="numeric" value={diet.kcal} onChange={(event) => saveDiet({ kcal: event.target.value })} /></label>
+            <label>Protein g<input inputMode="numeric" value={diet.protein} onChange={(event) => saveDiet({ protein: event.target.value })} /></label>
+            <label>Karb g<input inputMode="numeric" value={diet.carb} onChange={(event) => saveDiet({ carb: event.target.value })} /></label>
+            <label>Yağ g<input inputMode="numeric" value={diet.fat} onChange={(event) => saveDiet({ fat: event.target.value })} /></label>
+            <label>Su bardak<input inputMode="numeric" value={diet.water} onChange={(event) => saveDiet({ water: event.target.value })} /></label>
+          </div>
+          <label className="diet-note">
+            Hoca notu
+            <textarea rows={2} value={diet.note} placeholder="Akşam pirinci azalt, acıkırsan yoğurt ekle." onChange={(event) => saveDiet({ note: event.target.value })} />
+          </label>
+          <div className="rx-list">
             {diet.meals.map((meal, i) => {
-              const on = Boolean(meals[`${member.id}:meal:${i}`]);
+              const eatenMeal = Boolean(meals[`${member.id}:meal:${i}`]);
               return (
-                <li key={meal.name} className={on ? "on" : ""}>
-                  <span className="tick" />
-                  <b>{meal.name}</b>
-                  <small>{meal.time}</small>
-                </li>
+                <div key={`${meal.name}-${i}`} className={eatenMeal ? "rx done" : "rx"}>
+                  <div className="rx-grid">
+                    <label>Saat<input value={meal.time} onChange={(event) => saveDiet({ meals: diet.meals.map((item, idx) => idx === i ? { ...item, time: event.target.value } : item) })} /></label>
+                    <label>Öğün<input value={meal.name} onChange={(event) => saveDiet({ meals: diet.meals.map((item, idx) => idx === i ? { ...item, name: event.target.value } : item) })} /></label>
+                    <label>kcal<input inputMode="numeric" value={meal.kcal} onChange={(event) => saveDiet({ meals: diet.meals.map((item, idx) => idx === i ? { ...item, kcal: event.target.value } : item) })} /></label>
+                  </div>
+                  <label>
+                    Ne yiyecek
+                    <textarea rows={2} value={meal.items} onChange={(event) => saveDiet({ meals: diet.meals.map((item, idx) => idx === i ? { ...item, items: event.target.value } : item) })} />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn-text"
+                    disabled={diet.meals.length < 2}
+                    onClick={() => saveDiet({ meals: diet.meals.filter((_, idx) => idx !== i) })}
+                  >
+                    Öğünü kaldır
+                  </button>
+                </div>
               );
             })}
-          </ul>
-          <p className="hint">Üye ekranından işaretlenince burası dolar. Programı değiştir, üye ekranına dön.</p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-lime"
+            onClick={() => saveDiet({ meals: [...diet.meals, { time: "15:00", name: "Ara öğün", items: "150 g yoğurt", kcal: 150 }] })}
+          >
+            Öğün ekle
+          </button>
         </article>
       </div>
 
@@ -244,7 +341,7 @@ function MemberDetail({ member, index, checks, meals, note, setNote, onProgram, 
         </article>
         <article className="card">
           <header>
-            <h2>Hoca notu</h2>
+            <h2>Mesaj</h2>
           </header>
           <form
             className="note-form"
@@ -264,9 +361,9 @@ function MemberDetail({ member, index, checks, meals, note, setNote, onProgram, 
             </button>
           </form>
           <ul className="feed notes">
-            {member.notes.map((item) => (
+            {threadOf(member).map((item) => (
               <li key={item.id}>
-                <strong>{item.at}</strong>
+                <strong>{item.from === "uye" ? "Üye" : "Hoca"} · {item.at}</strong>
                 <p>{item.text}</p>
               </li>
             ))}

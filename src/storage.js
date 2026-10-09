@@ -1,6 +1,6 @@
 import { seedState } from "./data";
 
-const KEY = "murat-pt-hoca-v1";
+const KEY = "murat-pt-hoca-v2";
 
 export function loadState() {
   try {
